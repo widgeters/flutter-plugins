@@ -19,12 +19,12 @@ public class Stats {
      * by fetching usage statistics since the beginning of time
      */
     @SuppressWarnings("ResourceType")
-    public static boolean permissionRequired(Context context) {
+    public static boolean isPermissionRequired(Context context, long start, long end) {
         UsageStatsManager usm = (UsageStatsManager) context.getSystemService("usagestats");
-        Calendar calendar = Calendar.getInstance();
-        long endTime = calendar.getTimeInMillis();
-        long startTime = 0;
-        List<UsageStats> stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime);
+        // Calendar calendar = Calendar.getInstance();
+        // long endTime = calendar.getTimeInMillis();
+        // long startTime = 0;
+        List<UsageStats> stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_BEST, start, end);
         // If list is empty then permission ios required
         return stats.isEmpty();
     }

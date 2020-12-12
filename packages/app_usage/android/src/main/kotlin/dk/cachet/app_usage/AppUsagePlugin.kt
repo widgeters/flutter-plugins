@@ -44,15 +44,22 @@ public class AppUsagePlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
     }
 
     fun getUsage(@NonNull call: MethodCall, @NonNull result: Result) {
-        // Firstly, permission must be given by the user must be set correctly by the user
-        handlePermissions()
-
         // Parse parameters, i.e. start- and end-date
-        val start: Long? = call.argument("start")
-        val end: Long? = call.argument("end")
+        val start: Long = call.argument("start")!!
+        val end: Long = call.argument("end")!!
+
+        // Firstly, permission must be given by the user must be set correctly by the user
+        /// If permissions have not yet been given, show the permission screen
+        if (Stats.isPermissionRequired(context, start, end)) {
+            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+            this.activity.startActivity(intent)
+        }
+
+        println(start)
+        println(end)
 
         /// Query the Usage API
-        val usage = Stats.getUsageMap(context, start!!, end!!)
+        val usage = Stats.getUsageMap(context, start, end)
 
         /// Return the result
         result.success(usage)
@@ -61,14 +68,6 @@ public class AppUsagePlugin : FlutterPlugin, MethodCallHandler, ActivityAware {
 
     override fun onDetachedFromEngine(@NonNull binding: FlutterPlugin.FlutterPluginBinding) {
         channel.setMethodCallHandler(null)
-    }
-
-    fun handlePermissions() {
-        /// If permissions have not yet been given, show the permission screen
-        if (Stats.permissionRequired(context)) {
-            val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
-            this.activity.startActivity(intent)
-        }
     }
 
     override fun onDetachedFromActivity() {
