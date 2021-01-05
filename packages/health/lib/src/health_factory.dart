@@ -150,4 +150,20 @@ class HealthFactory {
     }
     return unique;
   }
+
+  /// Get an array of [HealthDataPoint] from an array of [HealthDataType]
+  Future<void> writeHealthData(
+      double value, HealthDataType type, DateTime time) async {
+    print("AWAITING PERMISSION");
+    bool granted = await requestAuthorization([type]);
+    print("PERMISSION: " + granted.toString());
+    if (granted) {
+      Map<String, dynamic> args = {
+        'value': value,
+        'type': _enumToString(type),
+        'time': time.millisecondsSinceEpoch
+      };
+      _channel.invokeMethod('writeData', args);
+    }
+  }
 }

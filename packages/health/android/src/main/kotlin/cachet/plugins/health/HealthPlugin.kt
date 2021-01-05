@@ -210,6 +210,11 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         return typesBuilder.build()
     }
 
+    /// Called when the "writeHealthData" is invoked from Flutter
+    private fun writeData(call: MethodCall, result: Result) {
+        print("im ready to go")
+    }
+
     /// Called when the "requestAuthorization" is invoked from Flutter 
     private fun requestAuthorization(call: MethodCall, result: Result) {
         val optionsToRegister = callToHealthTypes(call)
@@ -236,6 +241,7 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         when (call.method) {
             "requestAuthorization" -> requestAuthorization(call, result)
             "getData" -> getData(call, result)
+            "writeData" -> writeData(call, result)
             else -> result.notImplemented()
         }
     }
