@@ -246,6 +246,7 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
                         Log.w("FLUTTER_HEALTH", "There was an error adding the DataSet", e)
                     }
 
+                addDemoMeditationSession()
 
                 activity.runOnUiThread { result.success(null) }
 
@@ -275,6 +276,32 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         return DataSet.builder(dataSource)
             .add(dataPoint)
             .build()
+    }
+
+    private fun addDemoMeditationSession() {
+        val session = Session.Builder()
+            .setName("sessionName")
+            .setIdentifier("identifier")
+            .setDescription("description")
+            .setStartTime(startTime, TimeUnit.MILLISECONDS)
+            .setEndTime(endTime, TimeUnit.MILLISECONDS)
+            .setActivity(FitnessActivities.MEDITATION)
+            .build();
+
+        val insertTask =
+            Fitness.getSessionsClient(activity.applicationContext, googleSignInAccount)
+                    .insertSession(SessionInsertRequest.Builder()
+                        .setSession(session)
+                        .addDataSet(dataSet)
+                        .build())
+                    .addOnSuccessListener {
+                        Log.i("FLUTTER_HEALTH", "Session inserted successfully!")
+                    }
+                    .addOnFailureListener { e ->
+                        Log.w("FLUTTER_HEALTH", "There was an error adding the session", e)
+                    }
+
+        Tasks.await(insertTask);
     }
 
     /// Called when the "requestAuthorization" is invoked from Flutter 
