@@ -295,7 +295,6 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         // Look up data type and fitnessActivity for the type key
         val dataType = keyToHealthDataType(type)
         val fitnessActivity = keyToFitnessActivity(type)
-        val value = ((endTime - startTime) / 60000.0).toInt() // minutes between dates
 
         /// Start a new thread for doing a GoogleFit data lookup
         thread {
