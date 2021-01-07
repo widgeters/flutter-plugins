@@ -228,10 +228,10 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         thread {
             try {
                 val fitnessOptions = FitnessOptions.builder()
-                    .addDataType(DataType.TYPE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_WRITE)
+                    .addDataType(dataType, FitnessOptions.ACCESS_WRITE)
                     .build()
                 val googleSignInAccount = GoogleSignIn.getAccountForExtension(activity.applicationContext, fitnessOptions)
-                val dataSet = prepareDataSetToWrite(DataType.TYPE_STEP_COUNT_DELTA, Field.FIELD_STEPS, value, startTime, endTime)
+                val dataSet = prepareDataSetToWrite(dataType, unit, value, startTime, endTime)
                 Fitness.getHistoryClient(activity.applicationContext, googleSignInAccount)
                     .insertData(dataSet)
                     .addOnSuccessListener {
@@ -253,7 +253,6 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         val dataSource = DataSource.Builder()
             .setAppPackageName("dev.widgeters.health_demo")
             .setDataType(dataType)
-            .setStreamName("TAG - step count")
             .setType(DataSource.TYPE_RAW)
             .build()
 
@@ -269,37 +268,6 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
             .add(dataPoint)
             .build()
     }
-    
-    private fun getExampleDataSetToWrite(): DataSet {
-
-        // Set a start and end time for our data, using a start time of 1 hour before this moment.
-        val endTime = LocalDateTime.now().atZone(ZoneId.systemDefault())
-        val startTime = endTime.minusHours(1)
-
-        // Create a data source
-        val dataSource = DataSource.Builder()
-            .setAppPackageName("dev.widgeters.health_demo")
-            .setDataType(DataType.TYPE_STEP_COUNT_DELTA)
-            .setStreamName("TAG - step count")
-            .setType(DataSource.TYPE_RAW)
-            .build()
-
-        // For each data point, specify a start time, end time, and the data value
-        // -- in this case, the number of new steps.
-        val stepCountDelta = 950
-        val dataPoint =
-            DataPoint.builder(dataSource)
-                .setField(Field.FIELD_STEPS, stepCountDelta)
-                .setTimeInterval(startTime.toEpochSecond(), endTime.toEpochSecond(), TimeUnit.SECONDS)
-                .build()
-
-        val dataSet = DataSet.builder(dataSource)
-            .add(dataPoint)
-            .build()
-
-        return dataSet
-    }
-
 
     /// Called when the "requestAuthorization" is invoked from Flutter 
     private fun requestAuthorization(call: MethodCall, result: Result) {
