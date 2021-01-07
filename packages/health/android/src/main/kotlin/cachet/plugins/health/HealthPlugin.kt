@@ -294,20 +294,8 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
 
         // Look up data type and fitnessActivity for the type key
         val dataType = keyToHealthDataType(type)
-        val unit = getUnit(type)
         val fitnessActivity = keyToFitnessActivity(type)
         val value = ((endTime - startTime) / 60000.0).toInt() // minutes between dates
-
-        Log.i("FLUTTER_HEALTH", "type: $type")
-        Log.i("FLUTTER_HEALTH", "identifier: $identifier")
-        Log.i("FLUTTER_HEALTH", "name: $name")
-        Log.i("FLUTTER_HEALTH", "description: $description")
-        Log.i("FLUTTER_HEALTH", "startTime: $startTime")
-        Log.i("FLUTTER_HEALTH", "endTime: $endTime")
-        Log.i("FLUTTER_HEALTH", "dataType: $dataType")
-        Log.i("FLUTTER_HEALTH", "unit: $unit")
-        Log.i("FLUTTER_HEALTH", "fitnessActivity: $fitnessActivity")
-        Log.i("FLUTTER_HEALTH", "value: $value")
 
         /// Start a new thread for doing a GoogleFit data lookup
         thread {
@@ -319,13 +307,12 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
                 
                 val session = Session.Builder()
                     .setName(name)
-                   .setIdentifier(identifier) // identifier is optional
-                   .setDescription(description) // optional field
+                    .setIdentifier(identifier)
+                    .setDescription(description)
                     .setStartTime(startTime, TimeUnit.MILLISECONDS)
                     .setEndTime(endTime, TimeUnit.MILLISECONDS)
-                    .setActivity(fitnessActivity) // an optional field
+                    .setActivity(fitnessActivity)
                     .build();
-
 
                 val insertTask =
                     Fitness.getSessionsClient(activity.applicationContext, googleSignInAccount)
