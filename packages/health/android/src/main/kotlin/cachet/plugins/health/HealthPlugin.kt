@@ -215,13 +215,23 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
 
     /// Called when the "writeHealthData" is invoked from Flutter
     private fun writeData(call: MethodCall, result: Result) {
+        val type = call.argument<String>("dataTypeKey")!!
+        val value = call.argument<Int>("value")!!
+        val startTime = call.argument<Long>("startDate")!!
+        val endTime = call.argument<Long>("endDate")!!
+
+        // Look up data type and unit for the type key
+        val dataType = keyToHealthDataType(type)
+        val unit = getUnit(type)
+
+        /// Start a new thread for doing a GoogleFit data lookup
         thread {
             try {
                 val fitnessOptions = FitnessOptions.builder()
                     .addDataType(DataType.TYPE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_WRITE)
                     .build()
                 val googleSignInAccount = GoogleSignIn.getAccountForExtension(activity.applicationContext, fitnessOptions)
-                val dataSet = getExampleDataSetToWrite()
+                val dataSet = prepareDataSetToWrite(DataType.TYPE_STEP_COUNT_DELTA, Field.FIELD_STEPS, value, startTime, endTime)
                 Fitness.getHistoryClient(activity.applicationContext, googleSignInAccount)
                     .insertData(dataSet)
                     .addOnSuccessListener {
@@ -237,6 +247,29 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         }
     }
 
+    private fun prepareDataSetToWrite(dataType: DataType, field: Field, value: Int, startTime: Long, endTime: Long): DataSet {
+
+        // Create a data source
+        val dataSource = DataSource.Builder()
+            .setAppPackageName("dev.widgeters.health_demo")
+            .setDataType(dataType)
+            .setStreamName("TAG - step count")
+            .setType(DataSource.TYPE_RAW)
+            .build()
+
+        // For each data point, specify a start time, end time, and the data value
+        // -- in this case, the number of new steps.
+        val dataPoint =
+            DataPoint.builder(dataSource)
+                .setField(field, value)
+                .setTimeInterval(startTime, endTime, TimeUnit.MILLISECONDS)
+                .build()
+
+        return DataSet.builder(dataSource)
+            .add(dataPoint)
+            .build()
+    }
+    
     private fun getExampleDataSetToWrite(): DataSet {
 
         // Set a start and end time for our data, using a start time of 1 hour before this moment.
