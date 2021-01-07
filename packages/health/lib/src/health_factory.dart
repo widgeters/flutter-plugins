@@ -151,7 +151,7 @@ class HealthFactory {
     return unique;
   }
 
-  /// Insert value of [HealthDataType] for provided time interval.
+  /// Insert value for [HealthDataType] with provided time interval.
   Future<void> writeHealthData(HealthDataType dataType, int value,
       DateTime startDate, DateTime endDate) async {
     print("AWAITING PERMISSION");
@@ -165,6 +165,31 @@ class HealthFactory {
         'endDate': endDate.millisecondsSinceEpoch
       };
       _channel.invokeMethod('writeData', args);
+    }
+  }
+
+  /// Insert session for [HealthDataType] with provided time duration.
+  Future<void> writeHealthDataSession(
+    HealthDataType dataType,
+    String identifier,
+    String name,
+    String description,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    print("AWAITING PERMISSION");
+    bool granted = await requestAuthorization([dataType]);
+    print("PERMISSION: " + granted.toString());
+    if (granted) {
+      Map<String, dynamic> args = {
+        'dataTypeKey': _enumToString(dataType),
+        'identifier': identifier,
+        'name': name,
+        'description': description,
+        'startDate': startDate.millisecondsSinceEpoch,
+        'endDate': endDate.millisecondsSinceEpoch
+      };
+      _channel.invokeMethod('writeSessionData', args);
     }
   }
 }
