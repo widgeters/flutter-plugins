@@ -16,12 +16,14 @@ import io.flutter.plugin.common.PluginRegistry.Registrar
 import android.content.Intent
 import android.os.Handler
 import android.util.Log
+import com.google.android.gms.fitness.FitnessActivities
 import io.flutter.plugin.common.PluginRegistry.ActivityResultListener
 import java.util.concurrent.TimeUnit
 import java.time.LocalDateTime
 import java.time.ZoneId
 import kotlin.concurrent.thread
 import com.google.android.gms.fitness.data.*
+import com.google.android.gms.fitness.request.SessionInsertRequest
 
 const val GOOGLE_FIT_PERMISSIONS_REQUEST_CODE = 1111
 
@@ -43,6 +45,7 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
     private var BLOOD_GLUCOSE = "BLOOD_GLUCOSE"
     private var MOVE_MINUTES = "MOVE_MINUTES"
     private var DISTANCE_DELTA = "DISTANCE_DELTA"
+    private var MEDITATION = "MEDITATION"
 
 
     companion object {
@@ -132,6 +135,7 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
             BLOOD_GLUCOSE -> HealthDataTypes.TYPE_BLOOD_GLUCOSE
             MOVE_MINUTES -> DataType.TYPE_MOVE_MINUTES
             DISTANCE_DELTA -> DataType.TYPE_DISTANCE_DELTA
+            MEDITATION -> DataType.TYPE_DISTANCE_DELTA
             else -> DataType.TYPE_STEP_COUNT_DELTA
         }
     }
@@ -151,6 +155,7 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
             BLOOD_GLUCOSE -> HealthFields.FIELD_BLOOD_GLUCOSE_LEVEL
             MOVE_MINUTES -> Field.FIELD_DURATION
             DISTANCE_DELTA -> Field.FIELD_DISTANCE
+            MEDITATION -> Field.FIELD_DISTANCE
             else -> Field.FIELD_PERCENTAGE
         }
     }
@@ -231,7 +236,7 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
                     .addDataType(dataType, FitnessOptions.ACCESS_WRITE)
                     .build()
                 val googleSignInAccount = GoogleSignIn.getAccountForExtension(activity.applicationContext, fitnessOptions)
-                val dataSet = prepareDataSetToWrite(dataType, unit, value, startTime, endTime)
+                val dataSet = prepareDataSet(dataType, unit, value, startTime, endTime)
                 Fitness.getHistoryClient(activity.applicationContext, googleSignInAccount)
                     .insertData(dataSet)
                     .addOnSuccessListener {
@@ -240,18 +245,21 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
                     .addOnFailureListener { e ->
                         Log.w("FLUTTER_HEALTH", "There was an error adding the DataSet", e)
                     }
+
+
                 activity.runOnUiThread { result.success(null) }
+
             } catch (e3: Exception) {
                 activity.runOnUiThread { result.success(null) }
             }
         }
     }
 
-    private fun prepareDataSetToWrite(dataType: DataType, field: Field, value: Int, startTime: Long, endTime: Long): DataSet {
+    private fun prepareDataSet(dataType: DataType, field: Field, value: Int, startTime: Long, endTime: Long): DataSet {
 
         // Create a data source
         val dataSource = DataSource.Builder()
-            .setAppPackageName("dev.widgeters.health_demo")
+            .setAppPackageName(activity.applicationContext.packageName)
             .setDataType(dataType)
             .setType(DataSource.TYPE_RAW)
             .build()

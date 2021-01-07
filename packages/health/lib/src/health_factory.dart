@@ -151,7 +151,7 @@ class HealthFactory {
     return unique;
   }
 
-  /// Get an array of [HealthDataPoint] from an array of [HealthDataType]
+  /// Insert value of [HealthDataType] for provided time interval.
   Future<void> writeHealthData(HealthDataType dataType, int value,
       DateTime startDate, DateTime endDate) async {
     print("AWAITING PERMISSION");

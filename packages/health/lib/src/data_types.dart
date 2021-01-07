@@ -24,6 +24,7 @@ enum HealthDataType {
   MOVE_MINUTES,
   DISTANCE_DELTA,
   MINDFULNESS,
+  MEDITATION,
   WATER,
   SLEEP_IN_BED,
   SLEEP_ASLEEP,
@@ -85,6 +86,7 @@ const List<HealthDataType> _dataTypeKeysAndroid = [
   HealthDataType.MOVE_MINUTES,
   HealthDataType.DISTANCE_DELTA,
   HealthDataType.WATER,
+  HealthDataType.MEDITATION,
 ];
 
 /// Map a [HealthDataType] to a [HealthDataUnit].
@@ -116,6 +118,7 @@ const Map<HealthDataType, HealthDataUnit> _dataTypeToUnit = {
   HealthDataType.SLEEP_ASLEEP: HealthDataUnit.MINUTES,
   HealthDataType.SLEEP_AWAKE: HealthDataUnit.MINUTES,
   HealthDataType.MINDFULNESS: HealthDataUnit.MINUTES,
+  HealthDataType.MEDITATION: HealthDataUnit.MINUTES,
 
   /// Heart Rate events (specific to Apple Watch)
   HealthDataType.HIGH_HEART_RATE_EVENT: HealthDataUnit.NO_UNIT,
