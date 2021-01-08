@@ -286,9 +286,7 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
     /// Called when the "writeHealthDataSession" is invoked from Flutter
     private fun writeSessionData(call: MethodCall, result: Result) {
         val type = call.argument<String>("dataTypeKey")!!
-        val identifier = call.argument<String>("identifier")!!
         val name = call.argument<String>("name")!!
-        val description = call.argument<String>("description")!!
         val startTime = call.argument<Long>("startDate")!!
         val endTime = call.argument<Long>("endDate")!!
 
@@ -303,15 +301,14 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
                     .addDataType(dataType, FitnessOptions.ACCESS_WRITE)
                     .build()
                 val googleSignInAccount = GoogleSignIn.getAccountForExtension(activity.applicationContext, fitnessOptions)
-                
+                val identifier = activity.applicationContext.packageName + googleSignInAccount.id + startTime.toString()
                 val session = Session.Builder()
                     .setName(name)
                     .setIdentifier(identifier)
-                    .setDescription(description)
                     .setStartTime(startTime, TimeUnit.MILLISECONDS)
                     .setEndTime(endTime, TimeUnit.MILLISECONDS)
                     .setActivity(fitnessActivity)
-                    .build();
+                    .build()
 
                 val insertTask =
                     Fitness.getSessionsClient(activity.applicationContext, googleSignInAccount)

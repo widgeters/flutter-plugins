@@ -152,8 +152,11 @@ class HealthFactory {
   }
 
   /// Insert value for [HealthDataType] with provided time interval.
-  Future<void> writeHealthData(HealthDataType dataType, int value,
-      DateTime startDate, DateTime endDate) async {
+  /// name field is an optional parameter used mostly
+  /// for Meditation [HealthDataType] sessions
+  Future<void> writeHealthData(
+      HealthDataType dataType, int value, DateTime startDate, DateTime endDate,
+      {String name}) async {
     print("AWAITING PERMISSION");
     bool granted = await requestAuthorization([dataType]);
     print("PERMISSION: " + granted.toString());
@@ -161,6 +164,7 @@ class HealthFactory {
       Map<String, dynamic> args = {
         'dataTypeKey': _enumToString(dataType),
         'value': value,
+        'name': name,
         'startDate': startDate.millisecondsSinceEpoch,
         'endDate': endDate.millisecondsSinceEpoch
       };
@@ -169,11 +173,10 @@ class HealthFactory {
   }
 
   /// Insert session for [HealthDataType] with provided time duration.
+  /// start time and name
   Future<void> writeHealthDataSession(
     HealthDataType dataType,
-    String identifier,
     String name,
-    String description,
     DateTime startDate,
     DateTime endDate,
   ) async {
@@ -183,9 +186,7 @@ class HealthFactory {
     if (granted) {
       Map<String, dynamic> args = {
         'dataTypeKey': _enumToString(dataType),
-        'identifier': identifier,
         'name': name,
-        'description': description,
         'startDate': startDate.millisecondsSinceEpoch,
         'endDate': endDate.millisecondsSinceEpoch
       };
