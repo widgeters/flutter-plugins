@@ -135,7 +135,6 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
             BLOOD_GLUCOSE -> HealthDataTypes.TYPE_BLOOD_GLUCOSE
             MOVE_MINUTES -> DataType.TYPE_MOVE_MINUTES
             DISTANCE_DELTA -> DataType.TYPE_DISTANCE_DELTA
-            MEDITATION -> DataType.TYPE_DISTANCE_DELTA
             else -> DataType.TYPE_STEP_COUNT_DELTA
         }
     }
@@ -155,12 +154,11 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
             BLOOD_GLUCOSE -> HealthFields.FIELD_BLOOD_GLUCOSE_LEVEL
             MOVE_MINUTES -> Field.FIELD_DURATION
             DISTANCE_DELTA -> Field.FIELD_DISTANCE
-            MEDITATION -> Field.FIELD_DURATION
             else -> Field.FIELD_PERCENTAGE
         }
     }
 
-    private fun keyToFitnessActivity(type: String): String {
+    private fun keyToFitnessActivityValue(type: String): String {
         return when (type) {
             MEDITATION -> FitnessActivities.MEDITATION
             else -> FitnessActivities.MEDITATION
@@ -252,7 +250,7 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
 
         // Look up data type and fitnessActivity for the type key
         val dataType = keyToHealthDataType(type)
-        val fitnessActivity = keyToFitnessActivity(type)
+        val fitnessActivity = keyToFitnessActivityValue(type)
 
         val fitnessOptions = FitnessOptions.builder()
                 .addDataType(dataType, FitnessOptions.ACCESS_WRITE)
