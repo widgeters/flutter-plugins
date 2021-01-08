@@ -228,37 +228,79 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
     /// Called when the "writeHealthData" is invoked from Flutter
     private fun writeData(call: MethodCall, result: Result) {
         val type = call.argument<String>("dataTypeKey")!!
-        val value = call.argument<Int>("value")!!
         val startTime = call.argument<Long>("startDate")!!
         val endTime = call.argument<Long>("endDate")!!
+
+        /// Start a new thread for doing a GoogleFit data lookup
+        thread {
+            try {
+                if (type == MEDITATION) {
+                    val name = call.argument<String>("name")!!
+                    writeSessionData(type, name, startTime, endTime)
+                } else {
+                    val value = call.argument<Int>("value")!!
+                    writeHistoryData(type, value, startTime, endTime)
+                }
+                activity.runOnUiThread { result.success(null) }
+            } catch (e3: Exception) {
+                activity.runOnUiThread { result.success(null) }
+            }
+        }
+    }
+
+    private fun writeSessionData(type: String, name: String, startTime: Long, endTime: Long) {
+
+        // Look up data type and fitnessActivity for the type key
+        val dataType = keyToHealthDataType(type)
+        val fitnessActivity = keyToFitnessActivity(type)
+
+        val fitnessOptions = FitnessOptions.builder()
+                .addDataType(dataType, FitnessOptions.ACCESS_WRITE)
+                .build()
+        val googleSignInAccount = GoogleSignIn.getAccountForExtension(activity.applicationContext, fitnessOptions)
+        val identifier = activity.applicationContext.packageName + googleSignInAccount.id + startTime.toString()
+        val session = Session.Builder()
+                .setName(name)
+                .setIdentifier(identifier)
+                .setStartTime(startTime, TimeUnit.MILLISECONDS)
+                .setEndTime(endTime, TimeUnit.MILLISECONDS)
+                .setActivity(fitnessActivity)
+                .build()
+
+        val insertTask =
+                Fitness.getSessionsClient(activity.applicationContext, googleSignInAccount)
+                        .insertSession(SessionInsertRequest.Builder()
+                                .setSession(session)
+                                .build())
+                        .addOnSuccessListener {
+                            Log.i("FLUTTER_HEALTH", "Session inserted successfully!")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.w("FLUTTER_HEALTH", "There was an error adding the session", e)
+                        }
+
+        Tasks.await(insertTask);
+    }
+
+    private fun writeHistoryData(type: String, value: Int, startTime: Long, endTime: Long) {
 
         // Look up data type and unit for the type key
         val dataType = keyToHealthDataType(type)
         val unit = getUnit(type)
 
-        /// Start a new thread for doing a GoogleFit data lookup
-        thread {
-            try {
-                val fitnessOptions = FitnessOptions.builder()
-                    .addDataType(dataType, FitnessOptions.ACCESS_WRITE)
-                    .build()
-                val googleSignInAccount = GoogleSignIn.getAccountForExtension(activity.applicationContext, fitnessOptions)
-                val dataSet = prepareDataSet(dataType, unit, value, startTime, endTime)
-                Fitness.getHistoryClient(activity.applicationContext, googleSignInAccount)
-                    .insertData(dataSet)
-                    .addOnSuccessListener {
-                        Log.i("FLUTTER_HEALTH", "DataSet added successfully!")
-                    }
-                    .addOnFailureListener { e ->
-                        Log.w("FLUTTER_HEALTH", "There was an error adding the DataSet", e)
-                    }
-
-                activity.runOnUiThread { result.success(null) }
-
-            } catch (e3: Exception) {
-                activity.runOnUiThread { result.success(null) }
-            }
-        }
+        val fitnessOptions = FitnessOptions.builder()
+                .addDataType(dataType, FitnessOptions.ACCESS_WRITE)
+                .build()
+        val googleSignInAccount = GoogleSignIn.getAccountForExtension(activity.applicationContext, fitnessOptions)
+        val dataSet = prepareDataSet(dataType, unit, value, startTime, endTime)
+        Fitness.getHistoryClient(activity.applicationContext, googleSignInAccount)
+                .insertData(dataSet)
+                .addOnSuccessListener {
+                    Log.i("FLUTTER_HEALTH", "DataSet added successfully!")
+                }
+                .addOnFailureListener { e ->
+                    Log.w("FLUTTER_HEALTH", "There was an error adding the DataSet", e)
+                }
     }
 
     private fun prepareDataSet(dataType: DataType, field: Field, value: Int, startTime: Long, endTime: Long): DataSet {
@@ -281,55 +323,6 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         return DataSet.builder(dataSource)
             .add(dataPoint)
             .build()
-    }
-
-    /// Called when the "writeHealthDataSession" is invoked from Flutter
-    private fun writeSessionData(call: MethodCall, result: Result) {
-        val type = call.argument<String>("dataTypeKey")!!
-        val name = call.argument<String>("name")!!
-        val startTime = call.argument<Long>("startDate")!!
-        val endTime = call.argument<Long>("endDate")!!
-
-        // Look up data type and fitnessActivity for the type key
-        val dataType = keyToHealthDataType(type)
-        val fitnessActivity = keyToFitnessActivity(type)
-
-        /// Start a new thread for doing a GoogleFit data lookup
-        thread {
-            try {
-                val fitnessOptions = FitnessOptions.builder()
-                    .addDataType(dataType, FitnessOptions.ACCESS_WRITE)
-                    .build()
-                val googleSignInAccount = GoogleSignIn.getAccountForExtension(activity.applicationContext, fitnessOptions)
-                val identifier = activity.applicationContext.packageName + googleSignInAccount.id + startTime.toString()
-                val session = Session.Builder()
-                    .setName(name)
-                    .setIdentifier(identifier)
-                    .setStartTime(startTime, TimeUnit.MILLISECONDS)
-                    .setEndTime(endTime, TimeUnit.MILLISECONDS)
-                    .setActivity(fitnessActivity)
-                    .build()
-
-                val insertTask =
-                    Fitness.getSessionsClient(activity.applicationContext, googleSignInAccount)
-                            .insertSession(SessionInsertRequest.Builder()
-                                .setSession(session)
-                                .build())
-                            .addOnSuccessListener {
-                                Log.i("FLUTTER_HEALTH", "Session inserted successfully!")
-                            }
-                            .addOnFailureListener { e ->
-                                Log.w("FLUTTER_HEALTH", "There was an error adding the session", e)
-                            }
-
-                Tasks.await(insertTask);
-
-                activity.runOnUiThread { result.success(null) }
-
-            } catch (e3: Exception) {
-                activity.runOnUiThread { result.success(null) }
-            }
-        }
     }
 
     /// Called when the "requestAuthorization" is invoked from Flutter 
@@ -371,7 +364,6 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
             "requestAuthorization" -> requestAuthorization(call, result)
             "getData" -> getData(call, result)
             "writeData" -> writeData(call, result)
-            "writeSessionData" -> writeSessionData(call, result)
             else -> result.notImplemented()
         }
     }
