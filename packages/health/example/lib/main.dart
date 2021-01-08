@@ -114,8 +114,13 @@ class _MyAppState extends State<MyApp> {
 
   Widget _authorizationNotGranted() {
     return Text('''Authorization not given.
-        For Android please check your OAUTH2 client ID is correct in Google Developer Console.
-         For iOS check your permissions in Apple Health.''');
+For Android please check your OAUTH2 client ID is correct in Google Developer Console.
+For iOS check your permissions in Apple Health.''');
+  }
+
+  Widget _dataNotFetched() {
+    return Text('''Data not fetched. 
+Make sure you have installed Google Fit app.''');
   }
 
   Widget _content() {
@@ -127,6 +132,7 @@ class _MyAppState extends State<MyApp> {
       return _contentFetchingData();
     else if (_state == AppState.AUTH_NOT_GRANTED)
       return _authorizationNotGranted();
+    else if (_state == AppState.DATA_NOT_FETCHED) return _dataNotFetched();
 
     return _contentNotFetched();
   }

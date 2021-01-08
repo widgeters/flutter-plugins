@@ -2,6 +2,7 @@ package cachet.plugins.health
 
 import android.app.Activity
 import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.fitness.data.DataPoint
 import com.google.android.gms.fitness.Fitness
 import com.google.android.gms.fitness.FitnessOptions
 import com.google.android.gms.fitness.request.DataReadRequest
@@ -15,10 +16,14 @@ import io.flutter.plugin.common.PluginRegistry.Registrar
 import android.content.Intent
 import android.os.Handler
 import android.util.Log
+import com.google.android.gms.fitness.FitnessActivities
 import io.flutter.plugin.common.PluginRegistry.ActivityResultListener
 import java.util.concurrent.TimeUnit
+import java.time.LocalDateTime
+import java.time.ZoneId
 import kotlin.concurrent.thread
 import com.google.android.gms.fitness.data.*
+import com.google.android.gms.fitness.request.SessionInsertRequest
 
 const val GOOGLE_FIT_PERMISSIONS_REQUEST_CODE = 1111
 
@@ -40,6 +45,7 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
     private var BLOOD_GLUCOSE = "BLOOD_GLUCOSE"
     private var MOVE_MINUTES = "MOVE_MINUTES"
     private var DISTANCE_DELTA = "DISTANCE_DELTA"
+    private var MEDITATION = "MEDITATION"
 
 
     companion object {
@@ -67,6 +73,18 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
             .addDataType(keyToHealthDataType(BLOOD_GLUCOSE), FitnessOptions.ACCESS_READ)
             .addDataType(keyToHealthDataType(MOVE_MINUTES), FitnessOptions.ACCESS_READ)
             .addDataType(keyToHealthDataType(DISTANCE_DELTA), FitnessOptions.ACCESS_READ)
+            .addDataType(keyToHealthDataType(BODY_FAT_PERCENTAGE), FitnessOptions.ACCESS_WRITE)
+            .addDataType(keyToHealthDataType(HEIGHT), FitnessOptions.ACCESS_WRITE)
+            .addDataType(keyToHealthDataType(WEIGHT), FitnessOptions.ACCESS_WRITE)
+            .addDataType(keyToHealthDataType(STEPS), FitnessOptions.ACCESS_WRITE)
+            .addDataType(keyToHealthDataType(ACTIVE_ENERGY_BURNED), FitnessOptions.ACCESS_WRITE)
+            .addDataType(keyToHealthDataType(HEART_RATE), FitnessOptions.ACCESS_WRITE)
+            .addDataType(keyToHealthDataType(BODY_TEMPERATURE), FitnessOptions.ACCESS_WRITE)
+            .addDataType(keyToHealthDataType(BLOOD_PRESSURE_SYSTOLIC), FitnessOptions.ACCESS_WRITE)
+            .addDataType(keyToHealthDataType(BLOOD_OXYGEN), FitnessOptions.ACCESS_WRITE)
+            .addDataType(keyToHealthDataType(BLOOD_GLUCOSE), FitnessOptions.ACCESS_WRITE)
+            .addDataType(keyToHealthDataType(MOVE_MINUTES), FitnessOptions.ACCESS_WRITE)
+            .addDataType(keyToHealthDataType(DISTANCE_DELTA), FitnessOptions.ACCESS_WRITE)
             .build()
 
 
@@ -140,6 +158,13 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         }
     }
 
+    private fun keyToFitnessActivityValue(type: String): String {
+        return when (type) {
+            MEDITATION -> FitnessActivities.MEDITATION
+            else -> FitnessActivities.MEDITATION
+        }
+    }
+
     /// Extracts the (numeric) value from a Health Data Point
     private fun getHealthDataValue(dataPoint: DataPoint, unit: Field): Any {
         return try {
@@ -190,7 +215,6 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
                             "date_to" to dataPoint.getEndTime(TimeUnit.MILLISECONDS),
                             "unit" to unit.toString()
                     )
-
                 }
                 activity.runOnUiThread { result.success(healthData) }
             } catch (e3: Exception) {
@@ -199,15 +223,104 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         }
     }
 
-    private fun callToHealthTypes(call: MethodCall): FitnessOptions {
-        val typesBuilder = FitnessOptions.builder()
-        val args = call.arguments as HashMap<*, *>
-        val types = args["types"] as ArrayList<*>
-        for (typeKey in types) {
-            if (typeKey !is String) continue
-            typesBuilder.addDataType(keyToHealthDataType(typeKey), FitnessOptions.ACCESS_READ)
+    /// Called when the "writeHealthData" is invoked from Flutter
+    private fun writeData(call: MethodCall, result: Result) {
+        val type = call.argument<String>("dataTypeKey")!!
+        val startTime = call.argument<Long>("startDate")!!
+        val endTime = call.argument<Long>("endDate")!!
+
+        /// Start a new thread for doing a GoogleFit data lookup
+        thread {
+            try {
+                if (type == MEDITATION) {
+                    val name = call.argument<String>("name")!!
+                    writeSessionData(type, name, startTime, endTime)
+                } else {
+                    val value = call.argument<Int>("value")!!
+                    writeHistoryData(type, value, startTime, endTime)
+                }
+                activity.runOnUiThread { result.success(null) }
+            } catch (e3: Exception) {
+                activity.runOnUiThread { result.success(null) }
+            }
         }
-        return typesBuilder.build()
+    }
+
+    private fun writeSessionData(type: String, name: String, startTime: Long, endTime: Long) {
+
+        // Look up data type and fitnessActivity for the type key
+        val dataType = keyToHealthDataType(type)
+        val fitnessActivity = keyToFitnessActivityValue(type)
+
+        val fitnessOptions = FitnessOptions.builder()
+                .addDataType(dataType, FitnessOptions.ACCESS_WRITE)
+                .build()
+        val googleSignInAccount = GoogleSignIn.getAccountForExtension(activity.applicationContext, fitnessOptions)
+        val identifier = activity.applicationContext.packageName + googleSignInAccount.id + startTime.toString()
+        val session = Session.Builder()
+                .setName(name)
+                .setIdentifier(identifier)
+                .setStartTime(startTime, TimeUnit.MILLISECONDS)
+                .setEndTime(endTime, TimeUnit.MILLISECONDS)
+                .setActivity(fitnessActivity)
+                .build()
+
+        val insertTask =
+                Fitness.getSessionsClient(activity.applicationContext, googleSignInAccount)
+                        .insertSession(SessionInsertRequest.Builder()
+                                .setSession(session)
+                                .build())
+                        .addOnSuccessListener {
+                            Log.i("FLUTTER_HEALTH", "Session inserted successfully!")
+                        }
+                        .addOnFailureListener { e ->
+                            Log.w("FLUTTER_HEALTH", "There was an error adding the session", e)
+                        }
+
+        Tasks.await(insertTask);
+    }
+
+    private fun writeHistoryData(type: String, value: Int, startTime: Long, endTime: Long) {
+
+        // Look up data type and unit for the type key
+        val dataType = keyToHealthDataType(type)
+        val unit = getUnit(type)
+
+        val fitnessOptions = FitnessOptions.builder()
+                .addDataType(dataType, FitnessOptions.ACCESS_WRITE)
+                .build()
+        val googleSignInAccount = GoogleSignIn.getAccountForExtension(activity.applicationContext, fitnessOptions)
+        val dataSet = prepareDataSet(dataType, unit, value, startTime, endTime)
+        Fitness.getHistoryClient(activity.applicationContext, googleSignInAccount)
+                .insertData(dataSet)
+                .addOnSuccessListener {
+                    Log.i("FLUTTER_HEALTH", "DataSet added successfully!")
+                }
+                .addOnFailureListener { e ->
+                    Log.w("FLUTTER_HEALTH", "There was an error adding the DataSet", e)
+                }
+    }
+
+    private fun prepareDataSet(dataType: DataType, field: Field, value: Int, startTime: Long, endTime: Long): DataSet {
+
+        // Create a data source
+        val dataSource = DataSource.Builder()
+            .setAppPackageName(activity.applicationContext.packageName)
+            .setDataType(dataType)
+            .setType(DataSource.TYPE_RAW)
+            .build()
+
+        // For each data point, specify a start time, end time, and the data value
+        // -- in this case, the number of new steps.
+        val dataPoint =
+            DataPoint.builder(dataSource)
+                .setField(field, value)
+                .setTimeInterval(startTime, endTime, TimeUnit.MILLISECONDS)
+                .build()
+
+        return DataSet.builder(dataSource)
+            .add(dataPoint)
+            .build()
     }
 
     /// Called when the "requestAuthorization" is invoked from Flutter 
@@ -231,11 +344,24 @@ class HealthPlugin(val activity: Activity, val channel: MethodChannel) : MethodC
         }
     }
 
+    private fun callToHealthTypes(call: MethodCall): FitnessOptions {
+        val typesBuilder = FitnessOptions.builder()
+        val args = call.arguments as HashMap<*, *>
+        val types = args["types"] as ArrayList<*>
+        for (typeKey in types) {
+            if (typeKey !is String) continue
+            typesBuilder.addDataType(keyToHealthDataType(typeKey), FitnessOptions.ACCESS_READ)
+            typesBuilder.addDataType(keyToHealthDataType(typeKey), FitnessOptions.ACCESS_WRITE)
+        }
+        return typesBuilder.build()
+    }
+
     /// Handle calls from the MethodChannel
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
             "requestAuthorization" -> requestAuthorization(call, result)
             "getData" -> getData(call, result)
+            "writeData" -> writeData(call, result)
             else -> result.notImplemented()
         }
     }

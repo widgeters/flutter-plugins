@@ -150,4 +150,31 @@ class HealthFactory {
     }
     return unique;
   }
+
+  /// Insert value for [HealthDataType] with provided time interval.
+  Future<void> writeHealthData(
+    HealthDataType dataType,
+    DateTime startDate,
+    DateTime endDate, {
+    int value = 0,
+    String name = "",
+  }) async {
+    if (_platformType == PlatformType.IOS) {
+      print('Writing is not supported on iOS');
+      return;
+    }
+    print("AWAITING PERMISSION");
+    bool granted = await requestAuthorization([dataType]);
+    print("PERMISSION: " + granted.toString());
+    if (granted) {
+      Map<String, dynamic> args = {
+        'dataTypeKey': _enumToString(dataType),
+        'value': value,
+        'name': name,
+        'startDate': startDate.millisecondsSinceEpoch,
+        'endDate': endDate.millisecondsSinceEpoch
+      };
+      _channel.invokeMethod('writeData', args);
+    }
+  }
 }
