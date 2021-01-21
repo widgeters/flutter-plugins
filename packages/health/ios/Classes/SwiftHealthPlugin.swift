@@ -40,6 +40,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
     let SLEEP_IN_BED = "SLEEP_IN_BED"
     let SLEEP_ASLEEP = "SLEEP_ASLEEP"
     let SLEEP_AWAKE = "SLEEP_AWAKE"
+    let MEDITATION = "MEDITATION"
 
 
     public static func register(with registrar: FlutterPluginRegistrar) {
@@ -65,6 +66,11 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         else if (call.method.elementsEqual("getData")){
             getData(call: call, result: result)
         }
+        
+        /// Handle writeData
+        else if (call.method.elementsEqual("writeData")){
+            writeData(call: call, result: result)
+        }
     }
 
     func checkIfHealthDataAvailable(call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -83,13 +89,42 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         }
 
         if #available(iOS 11.0, *) {
-            healthStore.requestAuthorization(toShare: nil, read: typesToRequest) { (success, error) in
+            healthStore.requestAuthorization(toShare: typesToRequest, read: typesToRequest) { (success, error) in
                 result(success)
             }
         } 
         else {
             result(false)// Handle the error here.
         }
+    }
+
+    func writeData(call: FlutterMethodCall, result: @escaping FlutterResult) {
+        guard let arguments = call.arguments as? NSDictionary,
+            let value = (arguments["value"] as? Double),
+            let type = (arguments["dataTypeKey"] as? String),
+            let startDate = (arguments["startDate"] as? NSNumber),
+            let endDate = (arguments["endDate"] as? NSNumber)
+            else {
+                print("GUARD FAILED")
+                return
+            }
+
+        let dateFrom = Date(timeIntervalSince1970: startDate.doubleValue / 1000)
+        let dateTo = Date(timeIntervalSince1970: endDate.doubleValue / 1000)
+
+        print("Successfully called writeData with value of \(value) and type of \(type)")
+
+        let quantity = HKQuantity(unit: unitLookUp(key: type), doubleValue: value)
+
+        let sample = HKQuantitySample(type: dataTypeLookUp(key: type) as! HKQuantityType, quantity: quantity, start: dateFrom, end: dateTo)
+
+        HKHealthStore().save(sample, withCompletion: { (success, error) in
+          if let error = error {
+            print("Error Saving \(type) Sample: \(error.localizedDescription)")
+          } else {
+            print("Successfully saved \(type) Sample")
+          }
+        })
     }
 
     func getData(call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -182,6 +217,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         unitDict[SLEEP_IN_BED] = HKUnit.init(from: "")
         unitDict[SLEEP_ASLEEP] = HKUnit.init(from: "")
         unitDict[SLEEP_AWAKE] = HKUnit.init(from: "")
+        unitDict[MEDITATION] = HKUnit.mindfulSession()
 
         // Set up iOS 11 specific types (ordinary health data types)
         if #available(iOS 11.0, *) { 
@@ -210,6 +246,7 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
             dataTypesDict[SLEEP_IN_BED] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
             dataTypesDict[SLEEP_ASLEEP] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
             dataTypesDict[SLEEP_AWAKE] = HKSampleType.categoryType(forIdentifier: .sleepAnalysis)!
+            dataTypesDict[MEDITATION] = HKSampleType.categoryType(forIdentifier: .mindfulSession)!
 
             healthDataTypes = Array(dataTypesDict.values)
         }
