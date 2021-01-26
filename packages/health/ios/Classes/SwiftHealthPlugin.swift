@@ -115,10 +115,22 @@ public class SwiftHealthPlugin: NSObject, FlutterPlugin {
         print("Successfully called writeData with value of \(value) and type of \(type)")
 
         let quantity = HKQuantity(unit: unitLookUp(key: type), doubleValue: value)
-
-        let sample = HKQuantitySample(type: dataTypeLookUp(key: type) as! HKQuantityType, quantity: quantity, start: dateFrom, end: dateTo)
-
-        HKHealthStore().save(sample, withCompletion: { (success, error) in
+        
+        let object: HKObject
+        
+        if let quantityType = dataTypeLookUp(key: type) as? HKQuantityType {
+            object = HKQuantitySample(type: quantityType, quantity: quantity, start: dateFrom, end: dateTo)
+        } else if let categoryType = dataTypeLookUp(key: type) as? HKCategoryType {
+            if #available(iOS 9.0, *) {
+                object = HKCategorySample(type: categoryType, value: HKCategoryValue.notApplicable.rawValue, start: dateFrom, end: dateTo)
+            } else {
+                fatalError("Not available for iOS below 9.0")
+            }
+        } else {
+            fatalError("Unsupported data type")
+        }
+        
+        HKHealthStore().save(object, withCompletion: { (success, error) in
           if let error = error {
             print("Error Saving \(type) Sample: \(error.localizedDescription)")
           } else {
