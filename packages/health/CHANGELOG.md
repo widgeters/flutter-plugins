@@ -1,3 +1,6 @@
+## 3.0.1
+* Add support for writing on iOS and Android
+
 ## 3.0.0
 * Changed the flow for requesting access and reading data
     * Access must be requested manually before reading
